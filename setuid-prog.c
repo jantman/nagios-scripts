@@ -1,4 +1,17 @@
 /*
+
+   From Jason Antman's Nagios collection
+   <http://www.jasonantman.com>
+   <http://svn.jasonantman.com/public-nagios/>
+
+   $LastChangedRevision$
+   $HeadURL$
+
+   Found at an unknown location on the 'net.
+   Thanks to whoever wrote it.
+
+   ---------------------------------
+
    Template for a setuid program that calls a script.
 
    The script should be in an unwritable directory and should itself
