@@ -1,0 +1,169 @@
+#!/usr/bin/python
+
+import os, sys, socket, string, time
+from optparse import *
+
+#
+# check_asterisk_iaxpeers v1.0
+# Nagios check plugin to check FROGFOOT-RESOURCES-MIB
+# Copyright 2009-2010 Jason Antman <http://www.jasonantman.com> <jason@jasonantman.com>
+#
+# Note - I used Robert Callicotte's check_asterisk_alive <http://www.callicotte.org/np/check_asterisk_alive.htm>
+#  as the framework for making the socket connection to Asterisk and parsing the output. Without his work,
+#  this probably would not exist
+# 
+# The canonical current version of this script can be found at:
+#   <http://svn.jasonantman.com/public-nagios/>
+#
+# LICENSE:
+# This script can be freely used and distributed provided that:
+# 1) Any and all modifications (with the exception of the blocks of code between the 
+#     BEGIN CONFIG and END CONFIG comments) are sent back to me, at the above address, 
+#     for inclusion in my canonical copy of the script, under this license.
+# 2) This script may not be distributed for any cost or fee, except as would be allowed
+#     under version 3.0 (or any later version) of the GNU GPL license.
+# 3) This script may not be used in any hardware device where the end-user does not have
+#     unrestricted access to modify and view the script itself.
+# 4) You may not remove or alter the copyright notice, this license, or the URL to my web site
+#     or Subversion repository.
+# 5) Any redistribution of this script is under the exact terms of this license.
+# 6) This script is not included in the distribution of any software package that does not adhere
+#     to an OSI-approved Open Source license.
+# 7) If you wish to modify this script and redistribute your modifications (instead of waiting for me to include
+#     them in my authoritative SVN version) you must update the changelog (below) appropriately.
+#
+# $LastChangedRevision$
+# $HeadURL$
+#
+# CHANGELOG:
+#
+# 2010-02-12 jantman <jason@jasonantman.com>:
+#    - added warning/critical thresholds and perf data for latency
+#
+# 2010-03-10 jantman <jason@jasonantman.com>:
+#    - initial import into SVN repository
+#
+#
+# TODO - WARNING: this recieves 1024 bytes. If you have lots of IAX channels, it might not work.
+
+# Copyright notice preserved from Robert's plugin:
+"""
+Check_asterisk_alive plugin for Nagios.  Copyright (c) 2007-2008 Robert Callicotte.
+
+This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+"""
+
+
+# Process the command line...
+
+
+parser = OptionParser(usage="check_asterisk_iaxpeers [options]\nby Jason Antman <http://www.jasonantman.com>", version="%prog 1.0")
+parser.set_defaults(hostname='127.0.0.1')
+parser.set_defaults(port=5038)
+parser.set_defaults(warning=-1)
+parser.set_defaults(critical=-1)
+
+parser.add_option("-u", "--username", action="store", dest="user",
+        help="username for AMI.")
+parser.add_option("-p", "--password", action="store", dest="password",
+        help="password for AMI.")
+parser.add_option("-H", "--host", action="store", dest="hostname",
+        help="the host to connect to. The default is localhost.")
+parser.add_option("-P", "--port", action="store", dest="port",
+        help="the port to contact. Default is 5038.")
+parser.add_option("-n", "--peername", action="store", dest="peername",
+        help="the name of the peer as shown in 'iax2 show peers'.")
+parser.add_option("-w", "--warning", action="store", dest="warning",
+        help="high latency warning threshold in ms (int).")
+parser.add_option("-c", "--critical", action="store", dest="critical",
+        help="high latency critical threshold in ms (int).")
+
+(options, args) = parser.parse_args()
+
+# Define the socket connection
+
+mysocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+login = """Action: login\r\nUsername: """ + options.user + """\r\nSecret: """ + options.password + """\r\nEvents: off\r\n\r\n"""
+action = """Action: iaxpeers\r\n\r\n"""
+
+
+#global port
+host = options.hostname
+port = int(options.port)
+user = options.user
+password = options.password
+peername = options.peername
+warning = int(options.warning)
+critical = int(options.critical)
+
+def connect(host, user, password):
+	global myrcvd
+	mysocket.connect((host, port))
+	mysocket.send(login)
+	myrcvd = mysocket.recvfrom(1024)    #The output bytes from the socket connection. You can adjust size to taste.
+	mysocket.send(action)
+	time.sleep(0.2)
+	myrcvd = mysocket.recvfrom(1024)    #The output bytes from the socket connection. You can adjust size to taste.
+	mysocket.close()
+
+def parsePeer(peername, response):
+	# parse out the status of the peer we want
+	
+	lines = response.split("\r\n")
+	ourpeer = ""
+	# try to find the line beginning with ourpeer
+	for line in lines:
+		if line[0:len(peername)] == peername:
+			ourpeer = line
+	# if we didnt find the line with ourpeer, it's not there, CRIT
+	if ourpeer == "":
+		print "Critical: Peer not found!"
+		sys.exit(2)
+	# split the line into cols
+	cols = ourpeer.strip().split("  ")
+	# get the last column, if everything is OK it should be like "OK (XX ms)"
+	status = cols[len(cols)-1]
+	if status[:4] == "OK (":
+		time = status[3:].strip("()")
+		time = time.replace(" ", "")
+		inttime = int(status[3:].strip("()").split(" ")[0])
+
+		if critical > -1 and inttime > critical:
+			print "CRIT: "+peername+" "+status[3:]+" | latency="+time+";~:"+str(warning)+";~:"+str(critical)
+			sys.exit(2)
+
+		if warning > -1 and inttime > warning:
+			print "WARN: "+peername+" "+status[3:]+" | latency="+time+";~:"+str(warning)+";~:"+str(critical)
+			sys.exit(1)
+
+		if warning > -1 and critical > -1:
+			print "OK: "+peername+" "+status[3:]+" | latency="+time+";~:"+str(warning)+";~:"+str(critical)
+		else:
+			print "OK: "+peername+" "+status[3:]+" | latency="+time
+		sys.exit(0)
+	else:
+		print "CRITICAL: "+peername+" STATUS: "+status
+		sys.exit(2)
+
+
+# Perform the operation...
+
+			
+try:
+	connect(host, user, password)
+	parsePeer(peername, myrcvd[0])
+	sys.exit(0)
+
+except socket.error:
+	print "Critical: Cannot contact Asterisk!"
+	sys.exit(2)
+
