@@ -1,47 +1,15 @@
 #!/usr/bin/php
 <?php
-/*
- * check_syslog_age.php v1.0
- * Nagios check plugin to find age of newest file in a directory (recursively)
- * Copyright 2009-2010 Jason Antman <http://www.jasonantman.com> <jason@jasonantman.com>
- * Time-stamp: "2010-03-10 16:46:51 root"
- * 
- * The canonical current version of this script can be found at:
- *   <http://svn.jasonantman.com/public-nagios/>
- *
- * LICENSE:
- * This script can be freely used and distributed provided that:
- * 1) Any and all modifications (with the exception of the blocks of code between the 
- *     BEGIN CONFIG and END CONFIG comments) are sent back to me, at the above address, 
- *     for inclusion in my canonical copy of the script, under this license.
- * 2) This script may not be distributed for any cost or fee, except as would be allowed
- *     under version 3.0 (or any later version) of the GNU GPL license.
- * 3) This script may not be used in any hardware device where the end-user does not have
- *     unrestricted access to modify and view the script itself.
- * 4) You may not remove or alter the copyright notice, this license, or the URL to my web site
- *     or Subversion repository.
- * 5) Any redistribution of this script is under the exact terms of this license.
- * 6) This script is not included in the distribution of any software package that does not adhere
- *     to an OSI-approved Open Source license.
- * 7) If you wish to modify this script and redistribute your modifications (instead of waiting for me to include
- *     them in my authoritative SVN version) you must update the changelog (below) appropriately.
- *
- * $LastChangedRevision$
- * $HeadURL$
- *
- * CHANGELOG:
- *
- * 2010-03-10 jantman <jason@jasonantman.com>:
- *    - initial import into SVN repository
- *
- * NOTES:
- *  this script assumes that your logs are stored in a directory tree like $baseDir/hostname/
- *  everything under that path (regardless of subdirectory setup or a flat structure) will be checked.
- *
- *
- */
+  /**
+   * Nagios check plugin to find age of newest file in a directory (recursively)
+   * check_syslog_age.php v1.0 by Jason Antman <http://www.jasonantman.com>
+   *
+   * $LastChangedRevision$
+   * $HeadURL$
+   *
+   */
 
-// BEGIN CONFIG
+// CONFIG
 $baseDir = "/var/log/HOSTS/";
 // END CONFIG
 
@@ -80,7 +48,18 @@ if(! array_key_exists($host, $foo))
 $cmd = "find $baseDir".$foo[$host]."/ -type f -printf '%TY-%Tm-%Td %TT %p\n' | sort | tail -1 | awk '{print $3}'";
 $newestFile = trim(shell_exec($cmd));
 
+if(! is_readable($newestFile)){ echo "UNKNOWN: newest file ($newestFile) not readable.\n"; exit(3);}
+
+// begin hack for files larger than 2GB on 32-bit systems
+$er = error_reporting();
+error_reporting(0);
 $mtime = filemtime($newestFile);
+if(! $mtime)
+  {
+    $mtime = exec ('stat -c %Y '. escapeshellarg ($newestFile));
+  }
+error_reporting($er);
+
 $age = time() - $mtime;
 
 if($age >= $crit)
