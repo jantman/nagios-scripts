@@ -48,6 +48,7 @@
 //
 $servers = array();
 define("MYSQL_DEFAULT_PORT", 3306);
+define("MAX_BYTES_DIFF", 5000);
 
 // EXAMPLE ARRAY:
 /*
@@ -55,7 +56,6 @@ $servers['mastername'] = array('hostname' => 'foo', 'user' => 'username', 'passw
 $servers['mastername']['slaves']['slaveOne'] = array('hostname' => 'slaveOne', 'user' => 'username', 'password' => 'mypass', 'port' => 3306);
 $servers['mastername']['slaves']['slaveTwo'] = array('hostname' => 'slaveTwo', 'user' => 'username', 'password' => 'mypass', 'port' => 3306);
 */
-
 
 //
 // END CONFIGURATION
@@ -137,19 +137,26 @@ $MASTER_LOG_POS = $row['Position'];
 // now we have to loop through the defined slaves and check file and position...
 $okSlaves = 0;
 $badSlaves = 0;
+$str = "";
 foreach($slaves as $name => $arr)
 {
   $foo = check_slave_file_pos($arr, $MASTER_LOG_FILE, $MASTER_LOG_POS);
-  if($foo){ $okSlaves++;} else { $badSlaves++;}
+  // $foo is an array like slave_name => array('result' => boolean, 'log_pos' => int, 'log_file' => string, 'bytes_diff' => int)
+  if($foo['result'] == true){ $okSlaves++;} else { $badSlaves++;}
+  //$str .= $name."=".$foo['log_file'].":".$foo['log_pos'].', '.($foo['bytes_diff'] == 0 ? 'ok' : 'off by '.$foo['bytes_diff'].'B (> '.MAX_BYTES_DIFF.')').'; ';  
+  $str .= $name."=".$foo['log_file'].":".$foo['log_pos'].', off by '.$foo['bytes_diff'].'B ('.($foo['result'] == true ? '<' : '>').' '.MAX_BYTES_DIFF.'); ';  
 }
+
+$str = "master=".$MASTER_LOG_FILE.":".$MASTER_LOG_POS." ".$str;
+$str = trim($str, '; ');
 
 if($badSlaves > 0)
   {
-    echo "CRITICAL: MySQL replication to $badSlaves of ".($okSlaves + $badSlaves)." slaves broken.\n";
+    echo "CRITICAL: MySQL replication to $badSlaves of ".($okSlaves + $badSlaves)." slaves broken ($str).\n";
     exit(CRITICAL);
   }
 
-echo "OK: MySQL replication to $okSlaves of ".($okSlaves + $badSlaves)." slaves up-to-date.\n";
+echo "OK: MySQL replication to $okSlaves of ".($okSlaves + $badSlaves)." slaves up-to-date ($str).\n";
 exit(0);
 
 mysql_close($masterConn);
@@ -166,7 +173,8 @@ mysql_close($masterConn);
 function check_slave_file_pos($slaveArr, $MASTER_LOG_FILE, $MASTER_LOG_POS)
 {
   // try to connect to the slave
-  if($slaveArr['port'] != MYSQL_DEFAULT_PORT) { $foo = $slaveArr['hostname'].':'.$slaveArr['port'];} else { $foo = $slaveArr['hostname'];}
+  if(isset($slaveArr['ip'])){ $hostname = $slaveArr['ip'];} else { $hostname = $slaveArr['hostname'];}
+  if($slaveArr['port'] != MYSQL_DEFAULT_PORT) { $foo = $hostname.':'.$slaveArr['port'];} else { $foo = $hostname;}
   $conn = mysql_connect($foo, $slaveArr['user'], $slaveArr['password']);
   if(! $conn)
   {
@@ -183,9 +191,13 @@ function check_slave_file_pos($slaveArr, $MASTER_LOG_FILE, $MASTER_LOG_POS)
 
   mysql_close($conn);
 
-  if($row['Master_Log_File'] != $MASTER_LOG_FILE) { return false;}
-  if($row['Read_Master_Log_Pos'] != $MASTER_LOG_POS) { return false;}
-  return true;
+  $result = true;
+  if($row['Master_Log_File'] != $MASTER_LOG_FILE) { $result = false; }
+  
+  $bytes_diff = abs($MASTER_LOG_POS - $row['Read_Master_Log_Pos']);
+  if($bytes_diff > MAX_BYTES_DIFF){ $result = false;}
+
+  return array('result' => $result, 'log_pos' => $row['Read_Master_Log_Pos'], 'log_file' => $row['Master_Log_File'], 'bytes_diff' => $bytes_diff);
 }
 
 ?>
