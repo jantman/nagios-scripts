@@ -1,62 +1,66 @@
 #!/usr/bin/perl -w
 #
 # World of Warcraft Realm detector plugin for Nagios
-# Written by Scott A'Hearn (webmaster@scottahearn.com)
-# Last Modified: 07-21-2008
+#
+# Written by Scott A'Hearn (webmaster@scottahearn.com), version 1.2, Last Modified: 07-21-2008
+#
+# Modified by Jason Antman <jason@jasonantman.com> 02-22-2012, to cope with the change from
+# the deprecated worldofwarcraft.com XML feed to the BattleNet JSON API.
 #
 # Usage: ./check_wow -r <realm_name>
 #
 # Description:
 #
 # This plugin will check the status of a World of Warcraft realm, based 
-# on input from an XML-based status dump of all realms from worldofwarcraft.com.
+# on input from the battle.net JSON realm status API.
 #
 # Output:
 #
-# If the requested realm is found in the retrieved XML, the plugin will 
-# will check the status of the realm.  If the realm is up, the plugin will
+# If the realm is up, the plugin will
 # return an OK state with a message containing the status of the realm as well 
 # as some extended information such as type (PvP, PvE, etc) and population.  
 # If the realm is down, the plugin will return a CRITICAL state with a message
 # containing the status of the realm as well as any available extended 
-# information such as type (PvP, PvE, etc) and population.
+# information such as type (PvP, PvE, etc) and population. If the realm is
+# shown as currently having a queue, a WARNING state will be returned.
 #
-# If the requested realm is not found in the retrieved XML, the plugin will
+#
+# If the requested realm is not found, the plugin will
 # return an UNKNOWN state with an appropriate warning message.
 #
-# If there is an invalid [or no] response from the worldofwarcraft.com server,
+# If there is an invalid [or no] response from the battle.net server,
 # the plugin will return a CRITICAL state.
 #
-# Notes:
+# $HeadURL$
+# $LastChangedRevision$
 #
-# To avoid compile errors with Nagios' embedded perl interpreter, modify the 
-# Nagios config file, "checkcommands.cfg" with the following to use the shell's
-# perl interpreter instead:
+# Changelog:
+# 2012-02-22 Jason Antman <jason@jasonantman.com> (version 1.3):
+#     * modified for new BattleNet JSON API
+#     * added WARNING output if realm has queue
 #
-#	define command {
-#		command_name	check_wow
-#		command_line	/usr/bin/perl $USER1$/check_wow -r $ARG1$
-#	}
+# 2008-07-21 Scott A'Hearn <webmaster@scottahearn.com> (version 1.2):
+#     * version on Nagios Exchange
 #
 
 # use modules
-use strict;					# good coding practices
-use XML::Simple;			# for parsing xml
+use strict;				# good coding practices
 use Getopt::Long;			# command-line option parsing
-use LWP;					# external content retrieval
-
-use lib  "nagios/plugins";	# nagios plugins
+use LWP;				# external content retrieval
+use JSON;                               # JSON for API reply
+use lib  "/usr/lib/nagios/plugins";	# nagios plugins
 use utils qw(%ERRORS &print_revision &support &usage );	# nagios error and message libraries
+use Data::Dumper;                       # debugging
 
 # init global vars
 use vars qw($PROGNAME);	$PROGNAME="check_wow";
-my ($ver_string, $browser_agent, $browser, $xmlurl, $full_code, $opt_V, $opt_h, $opt_r, $xml, $data, $e, $realm_type, $realm_pop, $track_found);
-$xmlurl = "http://www.worldofwarcraft.com/realmstatus/status.xml";
-$ver_string = "v 1.2 2008/07/21 10:43:49";
+my ($ver_string, $browser, $jsonurl, $raw_json, $opt_V, $opt_h, $opt_r, $decoded) = (undef, undef, undef, undef, undef, undef, undef, undef);
+$jsonurl = "http://us.battle.net/api/wow/realm/status?realm=";
+$ver_string = "1.3";
 
 # init subs
-sub print_help ();
-sub print_usage ();
+sub print_help ($$);
+sub print_usage ($);
 
 # define command-line option handling
 Getopt::Long::Configure('bundling');
@@ -67,13 +71,13 @@ GetOptions(
 
 # show version info, exit
 if ($opt_V) {
-	print_revision($PROGNAME, '$Id$ver_string . ' $');
+	print_revision($PROGNAME, $ver_string);
 	exit $ERRORS{'OK'};
 }
 
 # show help, exit
 if ($opt_h) {
-	print_help();
+	print_help($PROGNAME, $ver_string);
 	exit $ERRORS{'OK'};
 }
 
@@ -82,94 +86,43 @@ $opt_r = shift unless ($opt_r);
 
 # if no command-line param passed, show usage/help, exit
 if (! $opt_r) {
-	print_usage();
+	print_usage($PROGNAME);
 	exit $ERRORS{'UNKNOWN'};
 }
-
-# create xml object
-$xml = new XML::Simple (ForceArray => 1);
 
 # new browser object, with agent
-$browser_agent = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
 $browser = LWP::UserAgent->new();
-$browser->agent("$browser_agent");
+$browser->agent("check_wow/$ver_string");
 
-# retrieve xml file from WoW site
-$full_code = $browser->request(HTTP::Request->new(GET => $xmlurl));
+# retrieve JSON from WoW site
+$jsonurl .= $opt_r;
+$raw_json = $browser->request(HTTP::Request->new(GET => $jsonurl));
 
-if ($full_code->is_success) {
+if ($raw_json->is_success) {
 	# if success, process
-	$full_code = $full_code->content;
-
-	# blizzard made the tree one level deeper - pull that out
-	$full_code =~ s/<\/?rs>//gi;
+	$raw_json = $raw_json->content;
 } else {
 	# otherwise, fail UNKNOWN
-	print "Realm UNKNOWN - Realm status not received";
+	print "UNKNOWN - Realm '$opt_r' status not received.";
 	exit $ERRORS{'UNKNOWN'};
 }
 
-# internal tracking variable
-$track_found = 0;
+$decoded = decode_json $raw_json;
 
-# read XML file
-$data = $xml->XMLin($full_code);
-
-# loop through all xml elements
-foreach $e (@{$data->{r}}) {
-	# if current node is the requested realm ... (case insensitive!)
-	if (lc($e->{n}) eq lc($opt_r)) {
-
-		# this is a sample of the output i'm expecting from the hashed xml
-		#use Data::Dumper;
-		#print Dumper($e);
-		#$VAR1 = {
-		#          'l' => '3',			# population
-		#          'n' => 'Andorhal',
-		#          's' => '1',			# server status
-		#          't' => '2'			# type
-		#        };
-
-		# get realm type
-		if ($e->{t} == 1) {			$realm_type = "Normal";
-		} elsif ($e->{t} == 2) {	$realm_type = "PVP";
-		} elsif ($e->{t} == 3) {	$realm_type = "RP";
-		} elsif ($e->{t} == 0) {	$realm_type = "RPPVP";
-		} else {					$realm_type = "Unknown";
-		}
-
-		# get realm population
-		if ($e->{l} == 1) {			$realm_pop = "Low";
-		} elsif ($e->{l} == 2) {	$realm_pop = "Medium";
-		} elsif ($e->{l} == 3) {	$realm_pop = "High";
-		} elsif ($e->{l} == 4) {	$realm_pop = "Max (Queued)";
-		} else {					$realm_pop = "Unknown";
-		}
-
-		# if the status of requested realm = 1, realm is UP
-		if ($e->{s} == 1) {
-			# success - realm is up; exit OK
-			print "Realm OK - " . $e->{n} . " (" . $realm_type . ") is up [Population: " . $realm_pop . "]";
-			exit $ERRORS{'OK'};
-		} else {
-			# realm is down; exit CRITICAL
-			print "Realm CRITICAL - " . $e->{n} . " (" . $realm_type . ") is down [Population: " . $realm_pop . "]";
-			exit $ERRORS{'CRITICAL'};
-		}
-
-		# set flag that requested realm has been found and processed
-		$track_found = 1;
-	}
-}
-
-# if requested realm has not been found in retrieved XML, exit UNKNOWN
-if ($track_found == 0) {
-	print "Realm UNKNOWN - '" . $opt_r . "' not found, check spelling";
-	exit $ERRORS{'UNKNOWN'};
+if($decoded->{realms}[0]->{status} != 1) {
+    print "CRITICAL - Realm ".$decoded->{realms}[0]->{name}." Down (".$decoded->{realms}[0]->{type}.", population: ".$decoded->{realms}[0]->{population}.")\n";
+    exit $ERRORS{'CRITICAL'};
+} elsif($decoded->{realms}[0]->{queue} != 0) {
+    print "WARNING - Realm ".$decoded->{realms}[0]->{name}." Has Queue (".$decoded->{realms}[0]->{type}.", population: ".$decoded->{realms}[0]->{population}.")\n";
+    exit $ERRORS{'WARNING'};
+} else {
+    print "OK - Realm ".$decoded->{realms}[0]->{name}." Up (".$decoded->{realms}[0]->{type}.", population: ".$decoded->{realms}[0]->{population}.")\n";
+    exit $ERRORS{'OK'};
 }
 
 # usage function
-sub print_usage () {
+sub print_usage ($) {
+        my ($PROGNAME) = @_;
 	print "Usage:\n";
 	print "  $PROGNAME [-r | --realm <realm>]\n";
 	print "  $PROGNAME [-h | --help]\n";
@@ -177,10 +130,11 @@ sub print_usage () {
 }
 
 # help function
-sub print_help () {
-	print_revision($PROGNAME, '$Id$ver_string . ' $');
-	print "Copyright (c) 2008 Scott A'Hearn\n\n";
-	print_usage();
+sub print_help ($$) {
+        my ($PROGNAME, $ver_string) = @_;
+	print_revision($PROGNAME, $ver_string);
+	print "Copyright (c) 2008 Scott A'Hearn, 2012 Jason Antman\n\n";
+	print_usage($PROGNAME);
 	print "\n";
 	print "  <realm> Standard World of Warcraft realm name, case sensitive.\n";
 	print "\n";
