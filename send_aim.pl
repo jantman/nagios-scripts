@@ -17,19 +17,31 @@
 # $LastChangedRevision$
 #
 
-$MySn = "PerlTest";             #Screen Name for the script to use.
-$MyPw = "Secret100";            #Password for the script to use.
-
-$ToSn = "AIMUser";              #Person to message.
-$Mesg = "This is a test...";    #Message to send.
-
-#**************************************************************************
-
+use strict;
+use warnings;
 use Net::OSCAR qw(:standard);
+use Getopt::Long;
 
-$oscar = Net::OSCAR->new();
-$oscar->signon($MySn, $MyPw);
+my ($screenname, $passwd, $ToSn, $Msg);
+my $VERSION = "r17";
 
+my $result = GetOptions ("screenname=s" => \$screenname,
+		      "password=s"   => \$passwd,
+		      "to=s"         => \$ToSn);
+
+if(! $screenname || ! $passwd || ! $ToSn) {
+    print "send_aim.pl $VERSION by Jason Antman <jason\@jasonantman.com>\n\n";
+    print "USAGE: send_aim.pl --screenname=<sn> --password=<pass> --to=<to_screenname>\n\n";
+}
+
+# read message from STDIN
+$Msg = <STDIN>;
+
+my $oscar = Net::OSCAR->new();
+$oscar->loglevel(0);
+$oscar->signon($screenname, $passwd);
+
+$oscar->set_callback_snac_unknown(\&snac_unknown);
 $oscar->set_callback_im_ok (\&log_out);
 $oscar->set_callback_signon_done (\&do_it);
 
@@ -38,7 +50,7 @@ while (1) {
 }
 
 sub do_it {
-    $oscar->send_im($ToSn, $mesg);
+    $oscar->send_im($ToSn, $Msg);
 }
 
 sub log_out {
@@ -46,3 +58,7 @@ sub log_out {
     exit;
 }
 
+sub snac_unknown {
+    my($oscar, $connection, $snac, $data) = @_;
+    # just use this to override the default snac_unknown handler, which prints a data dump of the packet
+}
