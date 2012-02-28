@@ -34,8 +34,14 @@ if(! $screenname || ! $passwd || ! $ToSn) {
     print "USAGE: send_aim.pl --screenname=<sn> --password=<pass> --to=<to_screenname>\n\n";
 }
 
-# read message from STDIN
+# slurp message from STDIN
+my $holdTerminator = $/;
+undef $/;
 $Msg = <STDIN>;
+$/ = $holdTerminator;
+my @lines = split /$holdTerminator/, $Msg;
+$Msg = "init";
+$Msg = join $holdTerminator, @lines;
 
 my $oscar = Net::OSCAR->new();
 $oscar->loglevel(0);
