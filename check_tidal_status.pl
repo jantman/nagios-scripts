@@ -95,11 +95,19 @@ my $output = `$cmd`;
 my $rcode = $?;
 alarm 0;
 
+my $running = 0;
+my ($hung, $total, $name, $ver);
+
 foreach my $line ($output) {
     chomp $line;
 
-    print "$line\n";
+    if $line =~ /Server is running./ { $running = 1; next;}
+    if $line =~ /TIDAL Product Name: (.+)/ { $name = $1; next;}
+    if $line =~ /TIDAL Product Version: (.+)/ { $ver = $1; next;}
+    if $line =~ /Message threads: (\d+) of (\d+) appear hung./ { $hung = $1; $total = $2; next;}
 }
+
+print "running=", $running, " name=", $name, " ver=", $ver, " hung=", $hung, " total=", $total, "\n";
 
 #Server is running.
 #Message threads: 0 of 50 appear hung.
