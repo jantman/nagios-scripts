@@ -74,11 +74,6 @@ my $CM_COMMAND = "su - tidal /apps/tidal/TIDAL/ClientManager/bin/cm status";
 my $TESM_COMMAND = "su - tidal /apps/tidal/TIDAL/master/bin/tesm status";
 my ($cmd, $name);
 
-##### DEBUG ######
-$CM_COMMAND = "cat cm_status";
-$TESM_COMMAND = "cat tesm_status";
-##### DEBUG ######
-
 if ( $np->opts->type eq 'master' ) {
     $cmd = $TESM_COMMAND;
     $name = "Tidal Master";
