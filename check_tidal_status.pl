@@ -62,7 +62,6 @@ my $np = Nagios::Plugin->new(
     blurb     => $BLURB,
     extra     => $EXTRA,
     usage     => "Usage: %s [-v|--verbose] [-t <timeout>] -T <cm|master>",
-    shortname => "Tidal Status",
 );
 
 $np->add_arg(spec => 'type|T=s', help => '-T --type .  Type of host to check - "master" or "cm".', required => 1);
@@ -73,8 +72,12 @@ $np->getopts;
 # ex.: $CM_COMMAND = "su - nagios /opt/TIDAL/master/bin/tesm status"
 my $CM_COMMAND = "su - tidal /apps/tidal/TIDAL/ClientManager/bin/cm status";
 my $TESM_COMMAND = "su - tidal /apps/tidal/TIDAL/master/bin/tesm status";
-my $cmd;
-my $name;
+my ($cmd, $name);
+
+##### DEBUG ######
+$CM_COMMAND = "cat cm_status";
+$TESM_COMMAND = "cat tesm_status";
+##### DEBUG ######
 
 if ( $np->opts->type eq 'master' ) {
     $cmd = $TESM_COMMAND;
@@ -91,30 +94,41 @@ else {
 
 # do the actual request
 alarm $np->opts->timeout;
-my $output = `$cmd`;
+my @output = `$cmd`;
 my $rcode = $?;
 alarm 0;
 
-my $running = 0;
-my ($hung, $total, $name, $ver);
+$np->nagios_die("UNKNOWN: $cmd exited $rcode.") if $rcode != 0;
 
-foreach my $line ($output) {
+my $running = 0;
+my ($hung, $total, $ver);
+
+foreach my $line (@output) {
     chomp $line;
 
-    if $line =~ /Server is running./ { $running = 1; next;}
-    if $line =~ /TIDAL Product Name: (.+)/ { $name = $1; next;}
-    if $line =~ /TIDAL Product Version: (.+)/ { $ver = $1; next;}
-    if $line =~ /Message threads: (\d+) of (\d+) appear hung./ { $hung = $1; $total = $2; next;}
+    if ($line =~ /Server is running./) { $running = 1; next;}
+    if ($line =~ /TIDAL Product Name: (.+)/) { $name = $1; next;}
+    if ($line =~ /TIDAL Product Version: (.+)/) { $ver = $1; next;}
+    if ($line =~ /Message threads: (\d+) of (\d+) appear hung./) {
+	$hung = $1;
+	$total = $2;
+	$np->add_perfdata(label => "hung_threads", value => $hung);
+	$np->add_perfdata(label => "total_threads", value => $total);
+	next;
+    }
+    if ($line =~ /Message performance: average message time = (\d+) milliseconds; max = (\d+) milliseconds for last 100 messages./) {
+	$np->add_perfdata(label => "message_avg_time", value => $1, uom => "ms");
+	$np->add_perfdata(label => "message_max_time", value => $2, uom => "ms");
+    }
+    if ($line =~ /Database performance: average operation time = (\d+) milliseconds; max = (\d+) milliseconds for last 100 operations./) {
+	$np->add_perfdata(label => "db_avg_time", value => $1, uom => "ms");
+	$np->add_perfdata(label => "db_max_time", value => $2, uom => "ms");
+    }
 }
 
-print "running=", $running, " name=", $name, " ver=", $ver, " hung=", $hung, " total=", $total, "\n";
+$np->nagios_exit('CRITICAL', "$name not running.") if $running == 0;
+# else
+$np->nagios_exit('WARNING', "$name $ver - $hung of $total message threads hung.") if $hung > 0;
+# else
+$np->nagios_exit('OK', "$name $ver - running, $hung of $total message threads hung.");
 
-#Server is running.
-#Message threads: 0 of 50 appear hung.
-#TIDAL Product Name: Client Manager
-#TIDAL Product Name: TIDAL Enterprise Scheduler
-#TIDAL Product Version: 6.0.2.94
-
-#	$np->nagios_exit('CRITICAL', "Agent '$name' on '$machine' not active on master (agent id $id, via CM ".$np->opts->cmhost.").");
-#    if(($now - $cacheTS) > $np->opts->warn) { $np->nagios_exit('WARNING', "Agent '$name' status cache age ".to_human_time($now - $cacheTS)." (via CM ".$np->opts->cmhost.")"); }
-#    $np->nagios_exit('OK', "Agent '$name' on '$machine' connected and active (agent id $id, via CM ".$np->opts->cmhost.").");
