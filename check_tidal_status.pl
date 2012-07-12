@@ -70,7 +70,7 @@ $np->getopts;
 # Configure the exact command required to run the status script as the user your plugin runs as (nagios)
 # Be warned, these are passed through backtick execs as-is
 # ex.: $CM_COMMAND = "su - nagios /opt/TIDAL/master/bin/tesm status"
-my $CM_COMMAND = "sudu -u tidal /apps/tidal/TIDAL/ClientManager/bin/cm status";
+my $CM_COMMAND = "sudo -u tidal /apps/tidal/TIDAL/ClientManager/bin/cm status";
 my $TESM_COMMAND = "sudo -u tidal /apps/tidal/TIDAL/master/bin/tesm status";
 my ($cmd, $name);
 
