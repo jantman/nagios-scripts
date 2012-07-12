@@ -47,6 +47,7 @@ use URI::Escape;
 use XML::Simple;
 use Nagios::Plugin;
 use Date::Parse;
+use Data::Dumper;
 
 sub to_human_time ($);
 
@@ -80,7 +81,7 @@ my $np = Nagios::Plugin->new(
     url       => "http://svn.jasonantman.com/public-nagios/check_tidal_rest.pl",
     blurb     => $BLURB,
     extra     => $EXTRA,
-    usage     => "Usage: %s [-v|--verbose] [-t <timeout>] [-P <port>] [-U <url>] [-w|-c <cache age>] -m <cmhost> -u <username> -p <password> -n <agent name>",
+    usage     => "Usage: %s [-v|--verbose] [-t <timeout>] [-P <port>] [-U <url>] [-w|-c <cache age>] -m <cmhost> -u <username> -p <password> -n <agent name> [-s]",
     shortname => "Tidal via REST",
 );
 
@@ -92,6 +93,7 @@ $np->add_arg(spec => 'url|U=s', help => '-U --url .  Client Manaer API URL, defa
 $np->add_arg(spec => 'name|n=s', help => '-n --name .  Agent Name to check', required => 1);
 $np->add_arg(spec => 'warn|w=i', help => '-w, --warn=INTEGER .  status cache age warning threshold in seconds, defaults to 120', default => 120, );
 $np->add_arg(spec => 'crit|c=i', help => '-c, --crit=INTEGER .  status cache age critical threshold in seconds, defaults to 240', default => 240, );
+$np->add_arg(spec => 'nostatcache|s', help => '-s, --nostatcache .  totally ignore status cache age', );
 $np->getopts;
 
 # this will get the list of ALL nodes, along with the status information we need.
@@ -127,7 +129,11 @@ $decoded = $decoded->{entry}; # the "entry" portion of the XML is all that we're
 # version 6.0.2 of the Tidal Enterprise Scheduler REST API Reference Guide makes NO mention whatsoever
 # of error handling, nor do they perform any in their example code. The following is based solely on 
 # observation and testing - jantman 2012-05-17
-$np->nagios_die("REST API Request Error.") if $decoded->{source} && $decoded->{source} eq 'ERROR';
+if($decoded->{source} && $decoded->{source} eq 'ERROR') {
+    print Dumper($decoded) if $np->opts->verbose;
+    $np->nagios_die("User '" . $np->opts->username . "' not authorized in Tidal.") if $decoded->{title} && $decoded->{title} eq "ERROR:UNAUTHORIZED";
+    $np->nagios_die("REST API Request Error.");
+}
 
 my ($machine, $cachelastchange, $name, $connection, $active, $type, $id, $cacheTS); # variables to hold elements we're interested in
 my $now = time;
@@ -155,8 +161,10 @@ foreach my $foo(keys $decoded) {
     # check cachelastchange timestamp for staleness
     $cacheTS = str2time($cachelastchange);
     
-    if(($now - $cacheTS) > $np->opts->crit) { $np->nagios_exit('CRITICAL', "Agent '$name' status cache age ".to_human_time($now - $cacheTS)." (via CM ".$np->opts->cmhost.")"); }
-    if(($now - $cacheTS) > $np->opts->warn) { $np->nagios_exit('WARNING', "Agent '$name' status cache age ".to_human_time($now - $cacheTS)." (via CM ".$np->opts->cmhost.")"); }
+    if(! $np->opts->nostatcache) {
+	if(($now - $cacheTS) > $np->opts->crit) { $np->nagios_exit('CRITICAL', "Agent '$name' status cache age ".to_human_time($now - $cacheTS)." (via CM ".$np->opts->cmhost.")"); }
+	if(($now - $cacheTS) > $np->opts->warn) { $np->nagios_exit('WARNING', "Agent '$name' status cache age ".to_human_time($now - $cacheTS)." (via CM ".$np->opts->cmhost.")"); }
+    }
 
     # default OK
     $np->nagios_exit('OK', "Agent '$name' on '$machine' connected and active (agent id $id, via CM ".$np->opts->cmhost.").");
