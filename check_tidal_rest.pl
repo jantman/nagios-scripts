@@ -137,7 +137,7 @@ if($decoded->{source} && $decoded->{source} eq 'ERROR') {
 
 my ($machine, $cachelastchange, $name, $connection, $active, $type, $id, $cacheTS); # variables to hold elements we're interested in
 my $now = time;
-foreach my $foo(keys $decoded) {
+while (( my $foo, my $value) = each(%$decoded)) {
     ($machine, $cachelastchange, $name, $connection, $active, $type, $id, $cacheTS) = (undef, undef, undef, undef, undef, undef, undef, undef);
     $name = $decoded->{$foo}->{'tes:node'}->{'tes:name'} if $decoded->{$foo}->{'tes:node'}->{'tes:name'};
 
