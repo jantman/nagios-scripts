@@ -41,13 +41,9 @@ use Nagios::Plugin;
 use DBI;
 use DBD::mysql;
 use Data::Dumper;
+use check_dashboard_config; # configuration is stored here
 
 sub to_human_time ($);
-
-my $db_host = ""; # database host
-my $db_user = ""; # database user
-my $db_pass = ""; # database password
-my $db_name = "dashboard"; # database name (schema name)
 
 my $VERSION = "v1";
 my $BLURB = "Checks status of Puppet Nodes (time since last successful run) via the Dashboard MySQL database.";
@@ -66,7 +62,7 @@ my $np = Nagios::Plugin->new(
     blurb     => $BLURB,
     extra     => $EXTRA,
     usage     => "Usage: %s [-v|--verbose] [-t <timeout>] [-w|-c <minutes>] -H <node_name>",
-    shortname => "Puppet Agent Run Status",
+    shortname => " ",
 );
 
 $np->add_arg(spec => 'nodename|H=s', help => '-H --nodename .  Name of Node to check', required => 1);
