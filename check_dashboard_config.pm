@@ -2,8 +2,8 @@
 ##################################################################################
 #
 # The latest version of this plugin can always be obtained from:
-#  $HeadURL: http://svn.jasonantman.com/public-nagios/check_linode_transfer.pl $
-#  $LastChangedRevision: 10 $
+#  $HeadURL$
+#  $LastChangedRevision$
 #
 ##################################################################################
 
