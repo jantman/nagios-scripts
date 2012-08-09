@@ -43,6 +43,7 @@ use strict;
 use warnings;
 use Nagios::Plugin;
 
+my $LOCKFILE = "/tmp/check_tidal_status.lock"; 
 my $VERSION = "v1";
 my $BLURB = "Tidal Enterprise Scheduler (TES) master/CM status check script. Checks status of Tidal Master and Client Manager via cm/tesm programs.";
 my $EXTRA = "
@@ -87,11 +88,21 @@ else {
     $np->nagios_die("Invalid argument for -T/--type. Must be 'cm' or 'master'.");
 }
 
+if ( -e $LOCKFILE ) {
+    $np->nagios_die("Check plugin already running, or lockfile ($LOCKFILE) not cleaned up.");
+}
+
+# touch lockfile
+open(FH, ">", $LOCKFILE) or $np->nagios_die("Could not create lockfile ($LOCKFILE).");
+close(FH);
+
 # do the actual request
 alarm $np->opts->timeout;
 my @output = `$cmd`;
 my $rcode = $?;
 alarm 0;
+
+unlink($LOCKFILE) or $np->nagios_die("Unable to remove lockfile ($LOCKFILE).");
 
 $np->nagios_die("UNKNOWN: $cmd exited $rcode.") if $rcode != 0;
 
