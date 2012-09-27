@@ -50,7 +50,8 @@ use DBD::mysql;
 use Data::Dumper;
 use Getopt::Long;
 use Cwd;
-use check_dashboard_config; # configuration is stored here
+use lib "/apps/local/icinga/libexec" ;
+use check_dashboard_config; # configuration stored here
 
 sub muge_hostname_for_nagios ($);
 sub print_usage ();
