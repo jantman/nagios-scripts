@@ -41,6 +41,7 @@ use Nagios::Plugin;
 use DBI;
 use DBD::mysql;
 use Data::Dumper;
+use lib "/apps/local/icinga/libexec" ;
 use check_dashboard_config; # configuration is stored here
 
 sub to_human_time ($);
@@ -92,7 +93,7 @@ $np->nagios_exit("UNKNOWN", "Could not find node with name '".$np->opts->nodenam
 my ($id, $status, $age) = (undef, undef, undef);
 while( ($id, $status, $age) = $sth->fetchrow_array()) {
     print STDERR "id=$id status=$status age=$age\n" if $np->opts->verbose;
-    if($status eq "changed" || $status eq "unchanged") {
+    if($status eq "changed" || $status eq "unchanged" || $status eq "pending") {
 	last;
     }
 }
@@ -112,14 +113,28 @@ if(! $id) {
     $np->nagios_exit('CRITICAL', "Last successful run for node '".$np->opts->nodename."' was ".to_human_time($age)." ago (id $id).") if $sth->rows() < 1;
 }
 
-my $msg = "Last successful run for node '".$np->opts->nodename."' was ".to_human_time($age)." ago (id $id).";
+my $msg;
+if($status eq "pending") {
+    $msg = "Node has pending non-automatic (noop) changes. Last run for node '".$np->opts->nodename."' was ".to_human_time($age)." ago (id $id).";
 
-if (($age / 60) >= $np->opts->crit) {
-    $np->nagios_exit('CRITICAL', $msg);
+    if (($age / 60) >= $np->opts->crit) {
+	$np->nagios_exit('CRITICAL', $msg);
+    }
+    else {
+	$np->nagios_exit('WARNING', $msg);
+    }
 }
-elsif(($age / 60) >= $np->opts->warn) {
-    $np->nagios_exit('WARNING', $msg);
+else {
+    $msg = "Last successful run for node '".$np->opts->nodename."' was ".to_human_time($age)." ago (id $id).";
+
+    if (($age / 60) >= $np->opts->crit) {
+	$np->nagios_exit('CRITICAL', $msg);
+    }
+    elsif(($age / 60) >= $np->opts->warn) {
+	$np->nagios_exit('WARNING', $msg);
+    }
 }
+
 $sth->finish();
 $dbh->disconnect();
 alarm 0;
