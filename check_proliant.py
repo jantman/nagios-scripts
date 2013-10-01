@@ -2,42 +2,8 @@
 
 # Python script for Nagios
 # check hpasm/hplog fans and power
-
-# requires: /sbin/hpasmcli
-
-# statusXML.php
-#
-# Python Nagios check script for HP Proliant hardware
-#   utilizing pexpect to check HPASMCLI.
 #
 # Requires: /sbin/hpasmcli, pexpect
-#
-# +----------------------------------------------------------------------+
-# | PHP EMS Tools      http://www.php-ems-tools.com                      |
-# +----------------------------------------------------------------------+
-# | Copyright (c) 2006, 2007 Jason Antman.                               |
-# |                                                                      |
-# | This program is free software; you can redistribute it and/or modify |
-# | it under the terms of the GNU General Public License as published by |
-# | the Free Software Foundation; either version 3 of the License, or    |
-# | (at your option) any later version.                                  |
-# |                                                                      |
-# | This program is distributed in the hope that it will be useful,      |
-# | but WITHOUT ANY WARRANTY; without even the implied warranty of       |
-# | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        |
-# | GNU General Public License for more details.                         |
-# |                                                                      |
-# | You should have received a copy of the GNU General Public License    |
-# | along with this program; if not, write to:                           |
-# |                                                                      |
-# | Free Software Foundation, Inc.                                       |
-# | 59 Temple Place - Suite 330                                          |
-# | Boston, MA 02111-1307, USA.                                          |
-# +----------------------------------------------------------------------+
-# | Authors: Jason Antman <jason@jasonantman.com>                        |
-# +----------------------------------------------------------------------+
-#      $Id: check_proliant.py,v 1.3 2009/02/07 03:44:35 jantman Exp $
-#      $Source: /usr/local/cvsroot/misc-scripts/check_proliant.py,v $
 #
 # Note: This uses the thresholds that HPLOG reports to determine OK or CRITICAL for temperatures
 #
@@ -48,6 +14,13 @@
 #  by adding the following line to /etc/sudoers, assuming the nagios user is 'nagios':
 #    nagios          ALL=(ALL)          NOPASSWD: /sbin/hpasmcli
 #
+#########################################################################################
+# Copyright 2009-2013 Jason Antman <jason@jasonantman.com> <http://www.jasonantman.com>
+#
+# AUTHORS:
+# Jason Antman <jason@jasonantman.com> <http://www.jasonantman.com>
+#
+#########################################################################################
 
 import time, sys, pexpect, getopt
 
