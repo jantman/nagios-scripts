@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+#
+# check_proliant.py - version 1.3
+#
 # Python script for Nagios
 # check hpasm/hplog fans and power
 #
@@ -19,6 +21,12 @@
 #
 # AUTHORS:
 # Jason Antman <jason@jasonantman.com> <http://www.jasonantman.com>
+# Kok Hon Yin <honyin@gmail.com> - "-" field3 skip patch
+#
+#########################################################################################
+#
+# The latest version of this script is available at:
+# <https://github.com/jantman/nagios-scripts/blob/master/check_proliant.py>
 #
 #########################################################################################
 
@@ -217,18 +225,18 @@ def doTemp(ignoreRedundant):
         # skip anything that doesn't give a current temp
         if fields[2].strip() == "-":
             continue
-        
+
         num_temps = num_temps + 1
 
         zoneName = fields[1].strip()
         curTemp = fields[2]
         curTemp = int(curTemp[:curTemp.find("C")])
+        if fields[3].strip() == "-":
+            # if the threshold field is "-", we can't check anything here, so move along
+            continue
         threshold = fields[3]
         threshold = int(threshold[:threshold.find("C")])
         warn = float(threshold) - (float(threshold) * ( 1.0 / float(WARN_TEMP_PCT)))
-
-        #print "ZONE: " + zoneName + " current=" + str(curTemp) + " threshold=" + str(threshold) + " warn=" + str(warn) # DEBUG
-
         if curTemp >= threshold:
             message = message + zoneName + "=" + str(curTemp) + "C/" + str(threshold) + "C "
             is_CRITICAL = 1
