@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# check_proliant.py - version 1.3
+# check_proliant.py - version 1.4
 #
 # Python script for Nagios
 # check hpasm/hplog fans and power
@@ -22,6 +22,7 @@
 # AUTHORS:
 # Jason Antman <jason@jasonantman.com> <http://www.jasonantman.com>
 # Kok Hon Yin <honyin@gmail.com> - "-" field3 skip patch
+# Markus Jauhola <markus.jauhola@transaxiom.fi> - add aggregated "all" check option
 #
 #########################################################################################
 #
@@ -36,6 +37,10 @@ HPASMCMD = "sudo /sbin/hpasmcli"
 HPASM_PROMPT = "hpasmcli>"
 WARN_TEMP_PCT = 10 # warn if we're within 10% of our temp threshold
 
+is_CRITICAL = 0
+is_WARNING = 0
+message = ""
+
 # usage info
 def usage():
     print "check_proliant.py - GPL Python Script by Jason Antman"
@@ -43,8 +48,8 @@ def usage():
     print "checks hplog and returns values for use by Nagios"
     print ""
     print "Usage:"
-    print "check_hplog.py --type=[fan|ps|temp|proc|dimm] [--ignore-redundant] [-h | --help]"
-    print "   type:           what information to get - fan, ps, temp, proc, dimm"
+    print "check_hplog.py --type=[fan|ps|temp|proc|dimm|all] [--ignore-redundant] [-h | --help]"
+    print "   type:           what information to get - fan, ps, temp, proc, dimm, all"
     print "   -h --help:      print this usage summary"
 
 def doFans(ignoreRedundant):
@@ -72,9 +77,10 @@ def doFans(ignoreRedundant):
     # variables to hold state
     total_fans = 0
     fans_missing = 0
-    is_CRITICAL = 0
-    is_WARNING = 0
-    message = ""
+    global is_CRITICAL
+    global is_WARNING
+    global message
+    test_ok = 1
     
     for line in lines:
         # skip over blank lines or command echo
@@ -92,24 +98,22 @@ def doFans(ignoreRedundant):
         if fields[2] != "Yes":
             fans_missing = fans_missing + 1
             is_CRITICAL = 1
+            test_ok=0
             message = message + "Fan " + fanNum + " Status=" + fields[2] + ". "
         # speed
         if fields[3] != "NORMAL":
             is_WARNING = 1
+            test_ok=0
             message = message + "Fan " + fanNum + " Speed=" + fields[3] + ". "
         # is redundant
         if ignoreRedundant == 0 and fields[5] != "Yes":
             is_CRITICAL = 1
+            test_ok=0
             message = message + "Fan " + fanNum + " Redundant=" + fields[5] + ". "
-
-    if is_CRITICAL != 0:
-        print "CRITICAL: " + message
-        sys.exit(2)
-    if is_WARNING != 0:
-        print "WARNING: " + message
-        sys.exit(1)
-    print "OK: " + str(total_fans) + " fans normal."
-    sys.exit(0)
+            
+    if test_ok == 1:
+        message = message + str(total_fans) + " fans normal."
+    return test_ok
 
 def doPower(ignoreRedundant):
     result = ""
@@ -134,9 +138,10 @@ def doPower(ignoreRedundant):
     lines = result.split("\n")
 
     # variables to hold state
-    is_CRITICAL = 0
-    is_WARNING = 0
-    message = ""
+    global is_CRITICAL
+    global is_WARNING
+    global message
+    test_ok = 1
     ps_num = ""
     num_psus = 0
     
@@ -162,28 +167,24 @@ def doPower(ignoreRedundant):
             if parts[0].strip() == "Present":
                 if parts[1].strip() != "Yes":
                     is_CRITICAL = 1
+                    test_ok = 0
                     message = message + "PSU #" + ps_num + " Not Present. "
             elif parts[0].strip() == "Redundant":
                 if parts[1].strip() != "Yes" and ignoreRedundant != 1:
                     is_CRITICAL = 1
+                    test_ok = 0
                     message = message + "PSU #" + ps_num + " Not Redundant. "
             elif parts[0].strip() == "Condition":
                 if parts[1].strip() != "Ok":
                     message = message + "PSU #" + ps_num + " condition is '" + parts[1].strip() + "'. "
                     is_CRITICAL = 1
-    # handle printing something and exiting
-    if is_CRITICAL == 1:
-        print "CRITICAL: " + message
-        sys.exit(2)
-    if is_WARNING == 1:
-        print "WARNING: " + message
-        sys.exit(1)
-
-    if ignoreRedundant == 1:
-        print "OK: ALL (" + str(num_psus) + ") PSUs OK."
-    else:
-        print "OK: ALL (" + str(num_psus) + ") PSUs OK and Redundant."
-    sys.exit(0)
+                    test_ok = 0
+    
+    if test_ok == 1 and ignoreRedundant == 1:
+        message = message + " ALL (" + str(num_psus) + ") PSUs OK."
+    elif test_ok == 1:
+        message = message + " ALL (" + str(num_psus) + ") PSUs OK and Redundant."
+    return test_ok
                 
 def doTemp(ignoreRedundant):
     try:
@@ -207,9 +208,10 @@ def doTemp(ignoreRedundant):
     lines = result.split("\n")
 
     # variables to hold state
-    is_CRITICAL = 0
-    is_WARNING = 0
-    message = ""
+    global is_CRITICAL
+    global is_WARNING
+    global message
+    test_ok = 1
     num_temps = 0
     
     for line in lines:
@@ -240,20 +242,15 @@ def doTemp(ignoreRedundant):
         if curTemp >= threshold:
             message = message + zoneName + "=" + str(curTemp) + "C/" + str(threshold) + "C "
             is_CRITICAL = 1
+            test_ok = 0
         elif curTemp >= warn:
             message = message + zoneName + "=" + str(curTemp) + "C/" + str(threshold) + "C "
             is_WARNING = 1
+            test_ok = 0
 
-    # handle printing something and exiting
-    if is_CRITICAL == 1:
-        print "CRITICAL: " + message
-        sys.exit(2)
-    if is_WARNING == 1:
-        print "WARNING: " + message
-        sys.exit(1)
-
-    print "OK: ALL (" + str(num_temps) + ") Temp Zones OK."
-    sys.exit(0)
+    if test_ok == 1:
+        message = message + " ALL (" + str(num_temps) + ") Temp Zones OK."
+    return test_ok
 
 def doProc(ignoreRedundant):
     try:
@@ -277,11 +274,12 @@ def doProc(ignoreRedundant):
     lines = result.split("\n")
 
     # variables to hold state
-    is_CRITICAL = 0
-    is_WARNING = 0
-    message = ""
+    global is_CRITICAL
+    global is_WARNING
+    global message
     proc_num = ""
     num_procs = 0
+    test_ok = 1
     
     for line in lines:
         # skip over blank lines or command echo
@@ -302,12 +300,11 @@ def doProc(ignoreRedundant):
                 if fields[1].strip() != "Ok":
                     message = message + "Processor " + proc_num + " " + fields[1].strip() + " "
                     is_CRITICAL = 1
-    # message
-    if is_CRITICAL != 0:
-        print "CRITICAL: " + message
-        sys.exit(2)
-    print "OK: ALL (" + str(num_procs) + ") processors Ok."
-    sys.exit(0)
+                    test_ok = 0
+                    
+    if test_ok == 1:
+        message = message + " ALL (" + str(num_procs) + ") processors Ok."
+    return test_ok
 
 def doDIMM(ignoreRedundant):
     try:
@@ -331,9 +328,10 @@ def doDIMM(ignoreRedundant):
     lines = result.split("\n")
 
     # variables to hold state
-    is_CRITICAL = 0
-    is_WARNING = 0
-    message = ""
+    global is_CRITICAL
+    global is_WARNING
+    global message
+    test_ok = 1
     dimm_num = ""
     num_dimms = 0
     present = ""
@@ -355,6 +353,7 @@ def doDIMM(ignoreRedundant):
                     print "dimm_num=" + dimm_num + " status= " + status + " present=" + present
                     message = message + "DIMM" + dimm_num + " Status: " + status + ". "
                     is_CRITICAL = 1
+                    test_ok = 0
             dimm_num = fields[0].strip()
             num_dimms = num_dimms + 1
         if fields[0].strip() == "Present":
@@ -367,13 +366,11 @@ def doDIMM(ignoreRedundant):
         print "dimm_num=" + dimm_num + " status= " + status + " present=" + present
         message = message + "DIMM" + dimm_num + " Status: " + status + ". "
         is_CRITICAL = 1
+        test_ok = 0
 
-    # message
-    if is_CRITICAL != 0:
-        print "CRITICAL: " + message
-        sys.exit(2)
-    print "OK: ALL (" + str(num_dimms) + ") DIMMs Ok."
-    sys.exit(0)
+    if test_ok == 1:
+        message = message + " ALL (" + str(num_dimms) + ") DIMMs Ok."
+    return test_ok
 
 def main(argv):
     ignoreRedundant = 0
@@ -391,7 +388,7 @@ def main(argv):
             type = arg
         elif opt in ("--ignore-redundant"):
             ignoreRedundant = 1
-    if type == '':
+    if not 'type' in locals() or type == '':
         print "UNKNOWN: INPUT ERROR: Type cannot be empty!"
         usage()
         sys.exit(3)
@@ -406,11 +403,25 @@ def main(argv):
         doDIMM(ignoreRedundant)
     elif type == 'proc':
         doProc(ignoreRedundant)
+    elif type == 'all':
+         doFans(ignoreRedundant)
+         doPower(ignoreRedundant)
+         doTemp(ignoreRedundant)
+         doDIMM(ignoreRedundant)
+         doProc(ignoreRedundant)
     else:
         print "UNKNOWN: Invalid type option."
         sys.exit(3)
 
+    if is_CRITICAL != 0:
+        print "CRITICAL: "+message
+        sys.exit(2)
+    if is_WARNING != 0:
+        print "WARNING: "+message
+        sys.exit(1)
     
+    print "OK: "+message
+    sys.exit(0)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
