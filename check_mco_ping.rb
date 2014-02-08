@@ -12,7 +12,9 @@
 # <https://github.com/jantman/nagios-scripts/blob/master/check_mco_ping.rb>
 #
 # Please file bug/feature requests and submit patches through
-# the above GitHub repository.
+# the above GitHub repository. Feedback and patches are greatly
+# appreciated; patches are preferred as GitHub pull requests, but
+# emailed patches are also accepted.
 #
 # Copyright 2014 Jason Antman <jason@jasonantman.com> all rights reserved.
 #  See the above git repository's LICENSE file for license terms (GPLv3).

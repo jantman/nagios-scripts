@@ -6,11 +6,6 @@
  *****************************************************************************************
  * Copyright 2011 Jason Antman <jason@jasonantman.com> <http://www.jasonantman.com>
  *
- * This script may be used, distributed, modified, etc. without limit, provided the following
- *  terms are met:
- *  1) This copyright notice, and all credits and changelogs, are left intact.
- *  2) You send any modifications/patches/bug fixes back to me for inclusion in the SVN trunk.
- *
  *****************************************************************************************
  * CONFIGURATION:
  *  Edit the variables below
@@ -27,8 +22,15 @@
  * CHANGELOG:
  *  2011-09-15 - jantman - initial version
  *****************************************************************************************
- * $LastChangedRevision$
- * $HeadURL$ 
+ * The authoritative version of this script lives at:
+ * <https://github.com/jantman/nagios-scripts>
+ *
+ * Please submit bug/feature requests or questions using
+ * the issue tracker there. Feedback, and patches (preferred
+ * as a GitHub pull request, but emailed diffs are also
+ * accepted) are strongly encouraged.
+ *
+ * Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
  ****************************************************************************************/
 
 //

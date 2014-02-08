@@ -1,14 +1,20 @@
 /*
 
    From Jason Antman's Nagios collection
-   <http://www.jasonantman.com>
-   <http://svn.jasonantman.com/public-nagios/>
-
-   $LastChangedRevision$
-   $HeadURL$
+   <https://github.com/jantman/nagios-scripts>
 
    Found at an unknown location on the 'net.
    Thanks to whoever wrote it.
+
+   The authoritative version of this script lives at:
+   <https://github.com/jantman/nagios-scripts>
+
+   Please submit bug/feature requests or questions using
+   the issue tracker there. Feedback, and patches (preferred
+   as a GitHub pull request, but emailed diffs are also
+   accepted) are strongly encouraged.
+
+   Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
 
    ---------------------------------
 

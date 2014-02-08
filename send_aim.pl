@@ -7,14 +7,17 @@
 # based on the simple version (C) 2008 James Nonnemaker / james[at]ustelcom[dot]net 
 #    found at: <http://moo.net/code/aim.html>
 #
-# The canonical, up-to-date version of this script can be found at:
-#  <http://svn.jasonantman.com/public-nagios/send_aim.pl>
-#
-# For updates, news, etc., see:
 #  <http://blog.jasonantman.com/2012/02/sending-aim-messages-from-a-perl-script/>
 #
-# $HeadURL$
-# $LastChangedRevision$
+# The authoritative version of this script lives at:
+#   <https://github.com/jantman/nagios-scripts>
+#
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
+# Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
 #
 
 use strict;

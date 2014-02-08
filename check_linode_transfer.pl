@@ -16,7 +16,7 @@
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
+# as published by the Free Software Foundation; either version 3
 # of the License, or (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -31,10 +31,16 @@
 #
 ##################################################################################
 #
-# The latest version of this plugin can always be obtained from:
-#  $HeadURL$
-#  $LastChangedRevision$
+# The authoritative version of this script lives at:
+# <https://github.com/jantman/nagios-scripts>
 #
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
+# Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
+##################################################################################
 
 use strict;
 use English;

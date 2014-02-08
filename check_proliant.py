@@ -29,6 +29,13 @@
 # The latest version of this script is available at:
 # <https://github.com/jantman/nagios-scripts/blob/master/check_proliant.py>
 #
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
+# Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
+#
 #########################################################################################
 
 import time, sys, pexpect, getopt

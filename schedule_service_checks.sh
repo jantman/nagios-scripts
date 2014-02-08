@@ -1,10 +1,18 @@
 #!/bin/sh
-
+#
 # This script has been released under the same license as GNU bash 3
 # Please let me know if you have any suggestions
-
+#
 # from <http://www.foo.co.in/2011/08/scheduling-multiple-service-checks-in.html>
-
+#
+# The authoritative version of this script lives at:
+# <https://github.com/jantman/nagios-scripts>
+#
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
 host=$1
 ptn=$2 # pattern for services to match
 

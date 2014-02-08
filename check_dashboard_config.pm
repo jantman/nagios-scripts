@@ -1,10 +1,15 @@
 # Configuration for check_puppet_dashboard_node.pl and dashboard_node_check_wrapper.pl
 ##################################################################################
 #
-# The latest version of this plugin can always be obtained from:
-#  $HeadURL$
-#  $LastChangedRevision$
+# The authoritative version of this script lives at:
+# <https://github.com/jantman/nagios-scripts>
 #
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
+# Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
 ##################################################################################
 
 package check_dashboard_config;

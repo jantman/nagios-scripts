@@ -30,12 +30,15 @@
 # to me for inclusion in the canonical version. 
 #
 ##################################################################################
-# The canonical current version of this script is available at:
-#  <http://svn.jasonantman.com/public-nagios/check_tidal_status.pl>
-##################################################################################
+# The authoritative version of this script lives at:
+# <https://github.com/jantman/nagios-scripts>
 #
-#  $HeadURL$
-#  $LastChangedRevision$
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
+#
+# Licensed under GNU GPLv3 - see the LICENSE file in the git repository.
 #
 ##################################################################################
 

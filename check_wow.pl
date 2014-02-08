@@ -31,8 +31,13 @@
 # If there is an invalid [or no] response from the battle.net server,
 # the plugin will return a CRITICAL state.
 #
-# $HeadURL$
-# $LastChangedRevision$
+# The authoritative version of this script lives at:
+# <https://github.com/jantman/nagios-scripts>
+#
+# Please submit bug/feature requests or questions using
+# the issue tracker there. Feedback, and patches (preferred
+# as a GitHub pull request, but emailed diffs are also
+# accepted) are strongly encouraged.
 #
 # Changelog:
 # 2012-02-22 Jason Antman <jason@jasonantman.com> (version 1.3):
