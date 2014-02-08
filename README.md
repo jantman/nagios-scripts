@@ -19,6 +19,9 @@ LICENSE file - GPLv3 plus you must retain copyright, authorship and license
 notices, and modified versions must be clearly identified.
 
 It's not a term of the license, but I strongly request - maybe even beg - you
-to submit changes/additions/bug fixes back to me as either pull requests or
-emailed diffs. I don't still use a lot of the software that these scripts
-monitor, so many of them rely on contributions to stay up-to-date.
+to submit changes/additions/bug fixes back to me as either pull requests
+(preferred) or emailed diffs. I don't still use a lot of the software that
+these scripts monitor, so many of them rely on contributions to stay up-to-date.
+
+If you have questions/concerns/find bugs *please* open an issue on GitHub to
+let me know.
