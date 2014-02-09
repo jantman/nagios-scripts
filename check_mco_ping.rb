@@ -25,8 +25,8 @@ require 'mcollective'
 oparser = MCollective::Optionparser.new({}, "filter")
 
 options = oparser.parse{|parser, options|
-  parser.define_head "Tester for the echo agent"
-  parser.banner = "Usage: mc-echo [options] msg"
+  parser.define_head "MCollective server ping check"
+  parser.banner = "Usage: check_mco_ping.rb -H hostname/identity [--warning float] [--critical float] [options]"
 
   parser.on('--warning WARN', 'Warning if ping time greater than this number of milliseconds (float)') do |v|
     options[:warn] = v.to_f
