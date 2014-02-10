@@ -41,13 +41,14 @@ class IdoCoreStatus(nagiosplugin.Resource):
         _log.info("connecting to Postgres DB %s on %s" % (self.db_name, self.db_host))
         _log.debug("db_user=%s db_pass=%s db_port=%s" % (self.db_user, self.db_pass, self.db_port))
         return [
-            nagiosplugin.Metric('last_run_age', 1, uom='s', min=0),
+            nagiosplugin.Metric('last_update', 1, uom='s', min=0),
             ]
 
 class LoadSummary(nagiosplugin.Summary):
     """LoadSummary is used to provide custom outputs to the check"""
-    def __init__(self, hostname):
+    def __init__(self, hostname, db_name):
         self.hostname = hostname
+        self.db_name = db_name
 
     def _human_time(self, seconds):
         """convert an integer seconds into human-readable hms"""
@@ -66,13 +67,10 @@ class LoadSummary(nagiosplugin.Summary):
         return ""
 
     def status_line(self, results):
-        if results['last_run_age'].metric == -1:
+        if results['last_update'].metric == -1:
             return "%s - No reports found in PuppetDB. No record of any run." % self.hostname
-        return "%s - Last Run %s ago%s, Run Duration %s%s" %(self.hostname,
-                                                         self._human_time(results['last_run_age'].metric.value),
-                                                         self._state_marker(results['last_run_age'].state),
-                                                         self._human_time(results['last_run_duration'].metric.value),
-                                                         self._state_marker(results['last_run_duration'].state))
+        return "%s - Last Run %s ago" %(self.hostname,
+                                                         self._human_time(results['last_update'].metric.value))
 
     def ok(self, results):
         return self.status_line(results)
@@ -84,21 +82,25 @@ class LoadSummary(nagiosplugin.Summary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-H', '--hostname', dest='hostname',
-                        help='Hostname/certname to check')
-    parser.add_argument('-w', '--last-warning', dest='last_warning',
+                        help='Postgres server hostname')
+    parser.add_argument('-p', '--port', dest='port',
+                        default='5432',
+                        help='Postgres port (Default: 5432)')
+    parser.add_argument('-u', '--username', dest='username',
+                        default='icinga-ido',
+                        help='Postgres username (Default: icinga-ido)')
+    parser.add_argument('-a', '--password', dest='password',
+                        default='icinga',
+                        help='Postgres password (Default: icinga)')
+    parser.add_argument('-n', '--db-name', dest='db_name',
+                        default='icinga_ido',
+                        help='Postgres database name (Default: icinga_ido)')
+    parser.add_argument('-w', '--warning', dest='warning',
                         default='7200',
-                        help='warning threshold for age of last successful run, in seconds (Default: 7200 / 2h)')
-    parser.add_argument('-c', '--last-critical', dest='last_critical',
+                        help='warning threshold for age of last programstatus update, in seconds (Default: 7200 / 2h)')
+    parser.add_argument('-c', '--critical', dest='critical',
                         default='14400',
-                        help='critical threshold for age of last successful run, in seconds (Default: 14400 / 4h)')
-    parser.add_argument('-dw', '--duration-warning', dest='dur_warning',
-                        default='',
-                        help='warning threshold for last run duration, in seconds (Default: )')
-    parser.add_argument('-dc', '--duration-critical', dest='dur_critical',
-                        default='',
-                        help='critical threshold for last run duration, in seconds (Default: )')
-    parser.add_argument('-p', '--puppetdb', dest='puppetdb',
-                        help='PuppetDB hostname or IP address')
+                        help='critical threshold for age of last programstatus update, in seconds (Default: 14400 / 4h)')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='increase output verbosity (use up to 3 times)')
     parser.add_argument('-t', '--timeout', dest='timeout',
@@ -110,14 +112,10 @@ def main():
     if not args.hostname:
         raise nagiosplugin.CheckError('hostname (-H|--hostname) must be provided')
 
-    if not args.puppetdb:
-        raise nagiosplugin.CheckError('PuppetDB host/IP (-p|--puppetdb) must be provided')
-
     check = nagiosplugin.Check(
-        PuppetdbAgentRun(args.hostname, args.puppetdb),
-        nagiosplugin.ScalarContext('last_run_age', args.last_warning, args.last_critical),
-        nagiosplugin.ScalarContext('last_run_duration', args.dur_warning, args.dur_critical),
-        LoadSummary(args.hostname))
+        IdoCoreStatus(args.hostname, args.db_name, args.username, args.password, args.port),
+        nagiosplugin.ScalarContext('last_update', args.warning, args.critical),
+        LoadSummary(args.hostname, args.db_name))
 
     check.main(args.verbose, args.timeout)
 
