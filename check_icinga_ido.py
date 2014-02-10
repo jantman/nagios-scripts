@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Script to check last update of core programstatus
-in Icinga ido2db Postgres database
+and service checks in Icinga ido2db Postgres database
 """
 
 #
@@ -22,14 +22,18 @@ from datetime import datetime
 import pytz
 import logging
 import argparse
+from math import ceil
 
 import nagiosplugin
+import psycopg2
+
+import pprint
 
 _log = logging.getLogger('nagiosplugin')
 utc = pytz.utc
 
-class IdoCoreStatus(nagiosplugin.Resource):
-    """Check age of ido2db core programstatus in postgres database"""
+class IdoStatus(nagiosplugin.Resource):
+    """Check age of ido2db programstatus and last service check in postgres database"""
     def __init__(self, db_host, db_name, db_user, db_pass, db_port=5432):
         self.db_host = db_host
         self.db_user = db_user
@@ -39,15 +43,44 @@ class IdoCoreStatus(nagiosplugin.Resource):
 
     def probe(self):
         _log.info("connecting to Postgres DB %s on %s" % (self.db_name, self.db_host))
-        _log.debug("db_user=%s db_pass=%s db_port=%s" % (self.db_user, self.db_pass, self.db_port))
+        try:
+            conn_str = "dbname='%s' user='%s' host='%s' password='%s' port='%s' application_name='%s'" % (
+                self.db_name,
+                self.db_user,
+                self.db_host,
+                self.db_pass,
+                self.db_port,
+                "check_icinga_ido_core.py",
+            )
+            _log.debug("psycopg2 connect string: %s" % conn_str)
+            conn = psycopg2.connect(conn_str)
+        except psycopg2.OperationalError, e:
+            _log.info("got psycopg2.OperationalError: %s" % e.__str__())
+            raise nagiosplugin.CheckError(e.__str__())
+        _log.info("connected to database")
+        # these queries come from https://wiki.icinga.org/display/testing/Special+IDOUtils+Queries
+        cur = conn.cursor()
+        _log.debug("got cursor")
+        sql = "SELECT EXTRACT(EPOCH FROM (NOW()-status_update_time)) AS age from icinga_programstatus where (UNIX_TIMESTAMP(status_update_time) > UNIX_TIMESTAMP(NOW())-60);"
+        _log.debug("executing query: %s" % sql)
+        cur.execute(sql)
+        row = cur.fetchone()
+        _log.debug("result: %s" % row)
+        programstatus_age = ceil(row[0])
+        sql = "select (UNIX_TIMESTAMP(NOW())-UNIX_TIMESTAMP(ss.status_update_time)) as age from icinga_servicestatus ss join icinga_objects os on os.object_id=ss.service_object_id order by status_update_time desc limit 1;"
+        _log.debug("executing query: %s" % sql)
+        cur.execute(sql)
+        row = cur.fetchone()
+        _log.debug("result: %s" % row)
+        last_check_age = ceil(row[0])
         return [
-            nagiosplugin.Metric('last_update', 1, uom='s', min=0),
+            nagiosplugin.Metric('programstatus_age', programstatus_age, uom='s', min=0),
+            nagiosplugin.Metric('last_check_age', last_check_age, uom='s', min=0),
             ]
 
 class LoadSummary(nagiosplugin.Summary):
     """LoadSummary is used to provide custom outputs to the check"""
-    def __init__(self, hostname, db_name):
-        self.hostname = hostname
+    def __init__(self, db_name):
         self.db_name = db_name
 
     def _human_time(self, seconds):
@@ -67,10 +100,15 @@ class LoadSummary(nagiosplugin.Summary):
         return ""
 
     def status_line(self, results):
-        if results['last_update'].metric == -1:
-            return "%s - No reports found in PuppetDB. No record of any run." % self.hostname
-        return "%s - Last Run %s ago" %(self.hostname,
-                                                         self._human_time(results['last_update'].metric.value))
+        if type(results.most_significant_state) == type(nagiosplugin.state.Unknown):
+            # won't have perf values, so special handling
+            return results.most_significant[0].hint.splitlines()[0]
+        return "Last Programstatus Update %s ago%s; Last Service Status Update %s ago%s (%s)" % (
+            self._human_time(results['programstatus_age'].metric.value),
+            self._state_marker(results['programstatus_age'].state),
+            self._human_time(results['last_check_age'].metric.value),
+            self._state_marker(results['last_check_age'].state),
+            self.db_name)
 
     def ok(self, results):
         return self.status_line(results)
@@ -96,11 +134,11 @@ def main():
                         default='icinga_ido',
                         help='Postgres database name (Default: icinga_ido)')
     parser.add_argument('-w', '--warning', dest='warning',
-                        default='7200',
-                        help='warning threshold for age of last programstatus update, in seconds (Default: 7200 / 2h)')
+                        default='120',
+                        help='warning threshold for age of last programstatus or service status update, in seconds (Default: 120 / 2m)')
     parser.add_argument('-c', '--critical', dest='critical',
-                        default='14400',
-                        help='critical threshold for age of last programstatus update, in seconds (Default: 14400 / 4h)')
+                        default='600',
+                        help='critical threshold for age of last programstatus or service status update, in seconds (Default: 600 / 10m)')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='increase output verbosity (use up to 3 times)')
     parser.add_argument('-t', '--timeout', dest='timeout',
@@ -113,12 +151,12 @@ def main():
         raise nagiosplugin.CheckError('hostname (-H|--hostname) must be provided')
 
     check = nagiosplugin.Check(
-        IdoCoreStatus(args.hostname, args.db_name, args.username, args.password, args.port),
-        nagiosplugin.ScalarContext('last_update', args.warning, args.critical),
-        LoadSummary(args.hostname, args.db_name))
+        IdoStatus(args.hostname, args.db_name, args.username, args.password, args.port),
+        nagiosplugin.ScalarContext('programstatus_age', args.warning, args.critical),
+        nagiosplugin.ScalarContext('last_check_age', args.warning, args.critical),
+        LoadSummary(args.db_name))
 
     check.main(args.verbose, args.timeout)
-
 
 if __name__ == '__main__':
     main()
