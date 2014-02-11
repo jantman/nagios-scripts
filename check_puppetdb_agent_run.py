@@ -77,7 +77,7 @@ class PuppetdbAgentRun(nagiosplugin.Resource):
             return None
         _log.info("Found latest report for node %s; report hash %s" % (node.name, latest_report.hash_))
         _log.debug("Latest Report: Node=%s Hash=%s Start=%s End=%s Received=%s Version=%s Format=%s Agent_version=%s Run_time=%s" % (
-                latest_report.node, 
+                latest_report.node,
                 latest_report.hash_,
                 latest_report.start,
                 latest_report.end,
@@ -160,11 +160,11 @@ def main():
                         default='14400',
                         help='critical threshold for age of last successful run, in seconds (Default: 14400 / 4h)')
     parser.add_argument('-dw', '--duration-warning', dest='dur_warning',
-                        default='',
-                        help='warning threshold for last run duration, in seconds (Default: )')
+                        default='600',
+                        help='warning threshold for last run duration, in seconds (Default: 600 / 10m)')
     parser.add_argument('-dc', '--duration-critical', dest='dur_critical',
-                        default='',
-                        help='critical threshold for last run duration, in seconds (Default: )')
+                        default='900',
+                        help='critical threshold for last run duration, in seconds (Default: 900 / 15m)')
     parser.add_argument('-p', '--puppetdb', dest='puppetdb',
                         help='PuppetDB hostname or IP address')
     parser.add_argument('-v', '--verbose', action='count', default=0,
