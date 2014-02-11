@@ -103,9 +103,19 @@ class PuppetdbAgentRun(nagiosplugin.Resource):
 
         # This can return any iterable. All values will be checked against the threasholds and report
         # perfdata metrics
-        age = (datetime.now(utc) - report.start).total_seconds()
+        age = (datetime.now(utc) - report.start)
+        # work with py26
+        try:
+            age = age.total_seconds()
+        except AttributeError:
+            age = (age.microseconds + (age.seconds + age.days * 24 * 3600) * 10**6) / 10**6
         _log.info("last run age: %ds ; run start time: %s" % (age, report.start))
-        duration = (report.end - report.start).total_seconds()
+        duration = (report.end - report.start)
+        # work with py26
+        try:
+            duration = duration.total_seconds()
+        except AttributeError:
+            duration = (duration.microseconds + (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
         _log.info("run duration: %ds" % duration)
         return [
             nagiosplugin.Metric('last_run_age', age, uom='s', min=0),
