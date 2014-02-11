@@ -62,7 +62,7 @@ begin
   stats = client.req("ping", "discovery", options) do |resp|
     next if resp == nil
     duration = (Time.now.to_f - start) * 1000
-    break  
+    break
   end
 rescue Exception => e
   duration = (Time.now.to_f - before) * 1000
