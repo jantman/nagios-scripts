@@ -72,6 +72,11 @@ rescue Exception => e
   exit 2
 end
 
+if duration == -1
+  printf("CRIT: mco ping was not returned for %s\n", options[:hostname])
+  exit 2
+end
+
 if options.include?(:crit)
   if duration >= options[:crit]
     perfdata = sprintf("%.2fms;%s;%s;0", duration, warn_s, crit_s)
