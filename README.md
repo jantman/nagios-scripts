@@ -1,6 +1,8 @@
 jantman/nagios-scripts
 ======================
 
+[![Project Status: Active - The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/0.1.0/active.svg)](http://www.repostatus.org/#active)
+
 http://github.com/jantman/nagios-scripts
 
 This is a collection of some of the Nagios check scripts I've written over the
