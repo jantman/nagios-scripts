@@ -25,7 +25,8 @@
 
 // TESTED ON: 
 //    Motorola SBV5120 - .1.3.6.1.2.1.1.1.0 = STRING: <<HW_REV: 1.0; VENDOR: Motorola Corporation; BOOTR: 8.2; SW_REV: SBV5120-17.5.4-SCM-01-SHPC; MODEL: SBV5120>>
-
+//    Arris CM900A - .1.3.6.1.2.1.1.1.0 ARRIS DOCSIS 3.0 /  Touchstone Cable Modem <<HW_REV: 2; VENDOR: Arris Interactive, L.L.C.; BOOTR: 2.3.1; SW_REV: 7.10.120; MODEL: CM900A>>
+//    Arris CM820A - .1.3.6.1.2.1.1.1.0 ARRIS DOCSIS 3.0 Touchstone WideBand Cable Modem <<HW_REV: 1; VENDOR: Arris Interactive, L.L.C.; BOOTR: 1.2.1.62; SW_REV: 7.5.93; MODEL: CM820A>>
 require_once('jantman_docsis_OIDs.php.inc');
 require_once('jantman_snmp.php.inc');
 
