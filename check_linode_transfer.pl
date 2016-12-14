@@ -95,6 +95,7 @@ if(! $data) {
 my ($used, $pool, $pct) = ($data->{TRANSFER_USED}, $data->{TRANSFER_POOL}, 0);
 
 $pct = ($used / $pool) * 100;
+$pct = sprintf("%.2f", $pct);
 
 if($pct >= $opt_c){
     $result = "CRITICAL";
