@@ -2,7 +2,7 @@
 #
 # World of Warcraft Realm detector plugin for Nagios
 #
-# Written by Scott A'Hearn (webmaster@scottahearn.com), version 1.2, Last Modified: 07-21-2008
+# Written by Scott A'Hearn (sahearn@gmail.com), version 1.2, Last Modified: 07-21-2008
 #
 # Modified by Jason Antman <jason@jasonantman.com> 02-22-2012, to cope with the change from
 # the deprecated worldofwarcraft.com XML feed to the BattleNet JSON API.
@@ -44,7 +44,7 @@
 #     * modified for new BattleNet JSON API
 #     * added WARNING output if realm has queue
 #
-# 2008-07-21 Scott A'Hearn <webmaster@scottahearn.com> (version 1.2):
+# 2008-07-21 Scott A'Hearn <sahearn@gmail.com> (version 1.2):
 #     * version on Nagios Exchange
 #
 
